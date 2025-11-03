@@ -10,13 +10,11 @@
     "firebase-admin": "^12.5.0"
   },
   "devDependencies": {
-    "@vercel/node": "^3.0.0",
+    "@vercel/node": "^4.0.0",
     "typescript": "^5.4.0",
     "@types/node": "^22.0.0"
   },
-  
   "engines": {
-    "node": ">=18.x"
+    "node": "20.x"
   }
-
 }
