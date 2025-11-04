@@ -4,7 +4,21 @@ import { getAuth } from "../../src/firebase";
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin;
   const allowedOrigin = process.env.CORS_ORIGIN || "*";
-  const corsOrigin = allowedOrigin === "*" ? (origin || "*") : allowedOrigin;
+  
+  // Permitir múltiples orígenes (separados por coma) o localhost para desarrollo
+  let corsOrigin = "*";
+  if (allowedOrigin !== "*") {
+    const allowedOrigins = allowedOrigin.split(",").map(o => o.trim());
+    if (origin && allowedOrigins.includes(origin)) {
+      corsOrigin = origin;
+    } else if (origin && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+      corsOrigin = origin;
+    } else if (allowedOrigins.length === 1 && allowedOrigins[0]) {
+      corsOrigin = allowedOrigins[0];
+    }
+  } else if (origin) {
+    corsOrigin = origin;
+  }
   
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");

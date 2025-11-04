@@ -5,8 +5,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin;
   const allowedOrigin = process.env.CORS_ORIGIN || "*";
   
-  // Si hay un origen específico configurado, usarlo; si no, permitir el origen de la request
-  const corsOrigin = allowedOrigin === "*" ? (origin || "*") : allowedOrigin;
+  // Permitir múltiples orígenes (separados por coma) o localhost para desarrollo
+  let corsOrigin = "*";
+  if (allowedOrigin !== "*") {
+    // Si hay múltiples orígenes separados por coma
+    const allowedOrigins = allowedOrigin.split(",").map(o => o.trim());
+    if (origin && allowedOrigins.includes(origin)) {
+      corsOrigin = origin;
+    } else if (origin && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+      // Permitir localhost automáticamente para desarrollo
+      corsOrigin = origin;
+    } else if (allowedOrigins.length === 1 && allowedOrigins[0]) {
+      corsOrigin = allowedOrigins[0];
+    }
+  } else if (origin) {
+    // Si no hay restricción, permitir el origen de la request
+    corsOrigin = origin;
+  }
   
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
