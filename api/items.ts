@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "../src/firebase";
+import { getDb } from "../src/firebase";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "*");
@@ -10,26 +10,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const col = db.collection("items");
+  try {
+    const db = getDb();
+    const col = db.collection("items");
 
-  // GET: obtener los últimos 50 items
-  if (req.method === "GET") {
-    const snap = await col.orderBy("createdAt", "desc").limit(50).get();
-    const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-    return res.status(200).json(items);
-  }
-
-  // POST: crear un nuevo item
-  if (req.method === "POST") {
-    const { text } = req.body || {};
-    if (!text || typeof text !== "string") {
-      return res.status(400).json({ error: "text required" });
+    // GET: obtener los últimos 50 items
+    if (req.method === "GET") {
+      const snap = await col.orderBy("createdAt", "desc").limit(50).get();
+      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      return res.status(200).json(items);
     }
 
-    const doc = await col.add({ text, createdAt: new Date().toISOString() });
-    return res.status(201).json({ id: doc.id });
-  }
+    // POST: crear un nuevo item
+    if (req.method === "POST") {
+      const { text } = req.body || {};
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({ error: "text required" });
+      }
 
-  // Método no permitido
-  return res.status(405).json({ error: "Method not allowed" });
+      const doc = await col.add({ text, createdAt: new Date().toISOString() });
+      return res.status(201).json({ id: doc.id });
+    }
+
+    // Método no permitido
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error: any) {
+    console.error("Error in items handler:", error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message || "Unknown error"
+    });
+  }
 }
