@@ -50,38 +50,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const uid = decodedToken.uid;
 
     // Obtener datos del body
-    const { first_name, last_name, user_id, email, phone, user_photo } = req.body || {};
+    const { first_name, last_name, user_id, email, phone, user_photo, city, address, nearby_landmark } = req.body || {};
 
-    // Validaciones
-    if (!first_name?.trim()) {
-      return res.status(400).json({ error: "first_name is required" });
-    }
-    if (!last_name?.trim()) {
-      return res.status(400).json({ error: "last_name is required" });
-    }
-    if (!user_id?.trim()) {
-      return res.status(400).json({ error: "user_id is required" });
-    }
-    if (!email?.trim()) {
-      return res.status(400).json({ error: "email is required" });
-    }
-    if (!phone?.trim()) {
-      return res.status(400).json({ error: "phone is required" });
+    // Validaciones (solo campos requeridos para creación inicial)
+    // Para actualización, estos campos pueden ser opcionales
+    const isUpdate = req.body?.isUpdate === true;
+    
+    if (!isUpdate) {
+      // Validaciones solo para registro nuevo
+      if (!first_name?.trim()) {
+        return res.status(400).json({ error: "first_name is required" });
+      }
+      if (!last_name?.trim()) {
+        return res.status(400).json({ error: "last_name is required" });
+      }
+      if (!user_id?.trim()) {
+        return res.status(400).json({ error: "user_id is required" });
+      }
+      if (!email?.trim()) {
+        return res.status(400).json({ error: "email is required" });
+      }
+      if (!phone?.trim()) {
+        return res.status(400).json({ error: "phone is required" });
+      }
     }
 
     // Guardar o actualizar usuario en Firestore
     const db = getDb();
-    const userData = {
+    const userData: any = {
       uid,
-      first_name: first_name.trim(),
-      last_name: last_name.trim(),
-      user_id: user_id.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      user_photo: user_photo || null,
       updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
     };
+
+    // Agregar campos solo si están presentes (incluso si están vacíos para actualización)
+    if (first_name !== undefined) userData.first_name = first_name?.trim() || "";
+    if (last_name !== undefined) userData.last_name = last_name?.trim() || "";
+    if (user_id !== undefined) userData.user_id = user_id?.trim() || "";
+    if (email !== undefined) userData.email = email?.trim() || "";
+    if (phone !== undefined) userData.phone = phone?.trim() || "";
+    if (user_photo !== undefined) userData.user_photo = user_photo || null;
+    // Para city, address y nearby_landmark, permitir valores vacíos
+    if (city !== undefined) userData.city = city?.trim() || "";
+    if (address !== undefined) userData.address = address?.trim() || "";
+    if (nearby_landmark !== undefined) userData.nearby_landmark = nearby_landmark?.trim() || "";
+    
+    console.log("Datos recibidos para actualizar:", {
+      city,
+      address,
+      nearby_landmark,
+      first_name,
+      last_name,
+      phone,
+    });
+    console.log("Datos a guardar en Firestore:", userData);
 
     // Verificar si el usuario ya existe
     const userDoc = await db.collection("users").doc(uid).get();
@@ -89,24 +110,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (userDoc.exists) {
       // Actualizar usuario existente (preservar createdAt)
       const existingData = userDoc.data();
-      await db.collection("users").doc(uid).update({
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        user_id: userData.user_id,
-        email: userData.email,
-        phone: userData.phone,
-        user_photo: userData.user_photo,
+      const updateData: any = {
+        ...userData,
         updatedAt: new Date().toISOString(),
-        createdAt: existingData?.createdAt || userData.createdAt,
-      });
+        createdAt: existingData?.createdAt || new Date().toISOString(),
+      };
+      
+      console.log("Actualizando usuario en Firestore:", updateData);
+      await db.collection("users").doc(uid).update(updateData);
+      
+      console.log("Usuario actualizado exitosamente");
     } else {
       // Crear nuevo usuario
+      userData.createdAt = new Date().toISOString();
+      console.log("Creando nuevo usuario en Firestore:", userData);
       await db.collection("users").doc(uid).set(userData);
     }
 
     return res.status(200).json({
       message: "Registration successful",
-      user_id: user_id.trim(),
+      user_id: user_id?.trim() || uid,
+      updated: userDoc.exists,
     });
   } catch (error: any) {
     console.error("Error in register handler:", error);
