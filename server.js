@@ -12,6 +12,7 @@ const googleHandler = require('./dist/api/auth/google.js').default;
 const verifyHandler = require('./dist/api/auth/verify.js').default;
 const ensureUserHandler = require('./dist/api/auth/ensure-user.js').default;
 const meHandler = require('./dist/api/me.js').default;
+const vehiclesHandler = require('./dist/api/vehicles.js').default;
 
 // Cargar variables de entorno
 require('dotenv').config({ path: '.env.local' });
@@ -136,6 +137,8 @@ const server = http.createServer(async (req, res) => {
       await ensureUserHandler(vercelReq, vercelRes);
     } else if (pathname === '/api/me') {
       await meHandler(vercelReq, vercelRes);
+    } else if (pathname === '/api/vehicles') {
+      await vehiclesHandler(vercelReq, vercelRes);
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
