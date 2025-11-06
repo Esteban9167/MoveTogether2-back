@@ -1,4 +1,10 @@
-node_modules
-dist
-.env.local
-
+# Ignorar archivos individuales de auth para que Vercel no los trate como funciones separadas
+api/auth/login.ts
+api/auth/google.ts
+api/auth/login-google.ts
+api/auth/verify.ts
+api/auth/ensure-user.ts
+api/auth/register.ts
+api/auth/send-otp.ts
+api/auth/verify-otp.ts
+api/auth/reset-password.ts
