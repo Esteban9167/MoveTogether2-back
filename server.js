@@ -4,10 +4,26 @@ const { parse } = require('url');
 require('dotenv').config({ path: '.env.local' });
 
 // Handlers compilados (dist)
+const logStream = fs.createWriteStream(path.join(__dirname, 'server.log'), { flags: 'a' });
+const originalLog = console.log;
+const originalError = console.error;
+console.log = (...args) => {
+  const message = args.map((item) => (typeof item === 'object' ? JSON.stringify(item) : String(item))).join(' ');
+  logStream.write(message + '\n');
+  originalLog.apply(console, args);
+};
+console.error = (...args) => {
+  const message = args.map((item) => (typeof item === 'object' ? JSON.stringify(item) : String(item))).join(' ');
+  logStream.write('[ERROR] ' + message + '\n');
+  originalError.apply(console, args);
+};
+
+// Importar los handlers compilados
 const itemsHandler = require('./dist/api/items.js').default;
 const authRouter = require('./dist/api/auth/index.js').default;
 const meHandler = require('./dist/api/me.js').default;
 const vehiclesHandler = require('./dist/api/vehicles.js').default;
+const tripsHandler = require('./dist/api/trips.js').default;
 const healthHandler = require('./dist/api/health.js').default;
 const contactHandler = require('./dist/api/contact.js').default;
 
@@ -134,6 +150,8 @@ const server = http.createServer(async (req, res) => {
         endpoints: [
           "/api/health - Health check",
           "/api/vehicles - GET: List vehicles, POST: Create vehicle, DELETE: Delete vehicle (via /api/vehicles/:id)",
+          "/api/vehicles - GET: List vehicles, POST: Create vehicle",
+          "/api/trips - GET: List my trips, POST: Create trip",
           "/api/me - Get current user",
           "/api/auth/login - Login",
           "/api/auth/verify - Verify token",
@@ -191,6 +209,45 @@ const server = http.createServer(async (req, res) => {
       // Para otras rutas (como favicon, .well-known, etc.), solo 404 silencioso
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end();
+      await authRouter(vercelReq, vercelRes);
+    } else if (pathname === '/api/me') {
+      await meHandler(vercelReq, vercelRes);
+    } else if (pathname === '/api/vehicles') {
+      await vehiclesHandler(vercelReq, vercelRes);
+    } else if (pathname === '/api/trips') {
+      await tripsHandler(vercelReq, vercelRes);
+    } else {
+      // Manejar rutas no encontradas
+      if (pathname.startsWith('/api/')) {
+        console.error(`❌ Ruta API no encontrada: ${pathname}`);
+        console.error(`   Ruta original: ${rawPath}`);
+        console.error(`   Rutas disponibles: /api/health, /api/items, /api/auth/*, /api/me, /api/vehicles`);
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          error: 'Not found', 
+          path: pathname,
+          originalPath: rawPath,
+          availableRoutes: [
+            '/api/health',
+            '/api/items',
+            '/api/auth/login',
+            '/api/auth/google',
+            '/api/auth/verify',
+            '/api/auth/ensure-user',
+            '/api/auth/send-otp',
+            '/api/auth/verify-otp',
+            '/api/auth/reset-password',
+            '/api/register',
+            '/api/me',
+            '/api/vehicles',
+            '/api/trips'
+          ]
+        }));
+      } else {
+        // Para otras rutas (como favicon, .well-known, etc.), solo 404 silencioso
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end();
+      }
     }
   } catch (error) {
     console.error('Server error:', error);
