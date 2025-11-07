@@ -21,13 +21,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
+
+  console.log(`🚗 Vehicles handler - Método recibido: ${req.method}`);
 
   try {
     const authHeader = req.headers.authorization;
@@ -157,6 +159,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         message: "Registered vehicle",
         vehicle_id,
+      });
+    }
+
+    // DELETE: Eliminar vehículo
+    if (req.method === "DELETE") {
+      console.log("🗑️ DELETE request recibido");
+      console.log("Body recibido:", req.body);
+      console.log("Query recibido:", req.query);
+      
+      // Admite path param (req.query.id) o body (req.body.vehicle_id)
+      const vehicle_id = (req.query?.id as string) || req.body?.vehicle_id;
+
+      if (!vehicle_id || typeof vehicle_id !== "string") {
+        console.error("❌ vehicle_id faltante o inválido:", vehicle_id);
+        return res.status(400).json({ error: "Vehicle id is required" });
+      }
+
+      // Obtener user_id del usuario desde la colección users
+      const userDoc = await db.collection("users").doc(uid).get();
+      if (!userDoc.exists) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const userData = userDoc.data();
+      const user_id = userData?.user_id;
+
+      if (!user_id) {
+        return res.status(400).json({ error: "User ID not found" });
+      }
+
+      // Obtener documento del driver
+      const driverRef = db.collection("drivers").doc(user_id);
+      const driverDoc = await driverRef.get();
+
+      if (!driverDoc.exists) {
+        return res.status(404).json({ error: "Driver not found" });
+      }
+
+      const driverData = driverDoc.data();
+      const vehicles = driverData?.vehicles || [];
+
+      // Verificar que el vehículo existe y pertenece al usuario
+      const vehicleIndex = vehicles.findIndex(
+        (v: any) => v.vehicle_id === vehicle_id
+      );
+
+      if (vehicleIndex === -1) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      // Verificar que hay más de 1 vehículo antes de eliminar (debe quedar al menos 1)
+      if (vehicles.length <= 1) {
+        return res.status(400).json({ 
+          error: "No se puede eliminar. Debes tener al menos 1 vehículo registrado." 
+        });
+      }
+
+      // Eliminar el vehículo del array
+      vehicles.splice(vehicleIndex, 1);
+
+      // Actualizar el documento del driver
+      await driverRef.update({
+        vehicles,
+        updatedAt: new Date().toISOString(),
+      });
+
+      return res.status(200).json({
+        message: "Vehicle deleted successfully",
       });
     }
 

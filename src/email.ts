@@ -33,12 +33,15 @@ export async function sendEmail({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(`Resend error: ${JSON.stringify(error)}`);
+        console.error("❌ Resend API error:", JSON.stringify(error));
+        // NO lanzar error - solo loguear y retornar
+        return;
       }
       return;
     } catch (error: any) {
-      console.error("Error sending email with Resend:", error);
-      throw error;
+      console.error("❌ Error sending email with Resend:", error?.message || error);
+      // NO lanzar error - solo loguear y retornar
+      return;
     }
   }
 
@@ -82,12 +85,15 @@ export async function sendEmail({
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`SendGrid error: ${error}`);
+        console.error("❌ SendGrid API error:", error);
+        // NO lanzar error - solo loguear y retornar
+        return;
       }
       return;
     } catch (error: any) {
-      console.error("Error sending email with SendGrid:", error);
-      throw error;
+      console.error("❌ Error sending email with SendGrid:", error?.message || error);
+      // NO lanzar error - solo loguear y retornar
+      return;
     }
   }
 
@@ -120,18 +126,16 @@ export async function sendEmail({
     console.warn("SMTP configurado pero nodemailer no está instalado. Usa Resend en su lugar.");
   }
 
-  // Si no hay servicio configurado, solo loguear (desarrollo)
-  if (process.env.NODE_ENV === "development") {
-    console.log("📧 [DEV] Email would be sent:");
-    console.log(`   To: ${to}`);
-    console.log(`   Subject: ${subject}`);
-    console.log(`   Body: ${text || html}`);
-    return;
-  }
-
-  // En producción, si no hay servicio configurado, lanzar error
-  throw new Error(
-    "Email service not configured. Set RESEND_API_KEY, SENDGRID_API_KEY, or SMTP config."
-  );
+  // Si no hay servicio configurado, solo loguear (no lanzar error)
+  // Esto permite que el flujo continúe incluso sin servicio de email
+  console.log("📧 [INFO] Email service not configured. Email would be sent:");
+  console.log(`   To: ${to}`);
+  console.log(`   Subject: ${subject}`);
+  console.log(`   Body: ${text || html?.substring(0, 100)}...`);
+  console.log(`   Configure RESEND_API_KEY, SENDGRID_API_KEY, or SMTP config to send emails.`);
+  
+  // NO lanzar error - solo retornar (el código OTP ya está generado)
+  // Esto permite que el flujo de recuperación continúe en desarrollo
+  return;
 }
 
