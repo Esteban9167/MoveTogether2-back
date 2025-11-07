@@ -116,3 +116,5 @@ El email que recibirán los usuarios incluye:
 - Verifica que el dominio/email esté verificado en SendGrid
 - Revisa los logs del backend para más detalles
 
+
+

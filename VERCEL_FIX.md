@@ -59,3 +59,5 @@ Los errores de `/favicon.png` y `/favicon.ico` son **normales** y no causan fall
 
 Comparte el error exacto de los **Build Logs** (no los Runtime Logs de favicon) y te ayudo a solucionarlo específicamente.
 
+
+
