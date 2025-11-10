@@ -1,5 +1,7 @@
 // Servidor de desarrollo simple para simular Vercel
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { parse } = require('url');
 require('dotenv').config({ path: '.env.local' });
 
@@ -78,7 +80,7 @@ const server = http.createServer(async (req, res) => {
   );
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization'
+    'Content-Type, Authorization, X-Requested-With, Accept'
   );
 
   if (req.method === 'OPTIONS') {
@@ -195,36 +197,21 @@ const server = http.createServer(async (req, res) => {
       return await authRouter(vercelReq, vercelRes);
     }
 
-    // 404 por defecto
+    if (pathname === '/api/trips') {
+      return await tripsHandler(vercelReq, vercelRes);
+    }
+
+    // 404 por defecto para rutas API desconocidas
     if (pathname.startsWith('/api/')) {
       console.error(`❌ Ruta API no encontrada: ${pathname}`);
       console.error(`   Ruta original: ${rawPath}`);
+      console.error(
+        `   Rutas disponibles: /api/health, /api/items, /api/auth/*, /api/me, /api/vehicles, /api/trips`
+      );
       res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ 
-        error: 'Not found', 
-        path: pathname,
-        originalPath: rawPath,
-      }));
-    } else {
-      // Para otras rutas (como favicon, .well-known, etc.), solo 404 silencioso
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end();
-      await authRouter(vercelReq, vercelRes);
-    } else if (pathname === '/api/me') {
-      await meHandler(vercelReq, vercelRes);
-    } else if (pathname === '/api/vehicles') {
-      await vehiclesHandler(vercelReq, vercelRes);
-    } else if (pathname === '/api/trips') {
-      await tripsHandler(vercelReq, vercelRes);
-    } else {
-      // Manejar rutas no encontradas
-      if (pathname.startsWith('/api/')) {
-        console.error(`❌ Ruta API no encontrada: ${pathname}`);
-        console.error(`   Ruta original: ${rawPath}`);
-        console.error(`   Rutas disponibles: /api/health, /api/items, /api/auth/*, /api/me, /api/vehicles`);
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-          error: 'Not found', 
+      res.end(
+        JSON.stringify({
+          error: 'Not found',
           path: pathname,
           originalPath: rawPath,
           availableRoutes: [
@@ -242,13 +229,14 @@ const server = http.createServer(async (req, res) => {
             '/api/vehicles',
             '/api/trips'
           ]
-        }));
-      } else {
-        // Para otras rutas (como favicon, .well-known, etc.), solo 404 silencioso
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end();
-      }
+        })
+      );
+      return;
     }
+
+    // Para otras rutas (como favicon, .well-known, etc.), solo 404 silencioso
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end();
   } catch (error) {
     console.error('Server error:', error);
     res.writeHead(500, { 'Content-Type': 'application/json' });
