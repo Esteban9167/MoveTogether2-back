@@ -1,3 +1,21 @@
+const DEFAULT_TIMEZONE_OFFSET_MINUTES = -300; // Bogotá (UTC-5)
+
+function parseLocalDateTimeMs(date: string | null | undefined, time: string | null | undefined) {
+  if (!date) return null;
+  const timezoneMinutes = Number(process.env.TRIP_TIMEZONE_OFFSET_MINUTES ?? DEFAULT_TIMEZONE_OFFSET_MINUTES);
+  const absMinutes = Math.abs(timezoneMinutes);
+  const hours = Math.floor(absMinutes / 60)
+    .toString()
+    .padStart(2, "0");
+  const minutes = (absMinutes % 60).toString().padStart(2, "0");
+  const sign = timezoneMinutes >= 0 ? "+" : "-";
+  const iso = `${date}T${time || "00:00"}:00${sign}${hours}:${minutes}`;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.getTime();
+}
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb, getAuth } from "../src/firebase";
 import { computeCorsOrigin } from "../src/utils/cors";
@@ -123,9 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const passengerFrom = { lat: fromLat, lng: fromLng };
         const passengerTo = { lat: toLat, lng: toLng };
-        const passengerDateTimeMs = requestedDate
-          ? new Date(`${requestedDate}T${requestedTime || "00:00"}:00`).getTime()
-          : null;
+        const passengerDateTimeMs = parseLocalDateTimeMs(requestedDate, requestedTime || "00:00");
 
         const viewerRole = (firstValue(req.query.viewerRole as any) || "").toLowerCase();
         const includeSelfTrips = viewerRole === "driver";
