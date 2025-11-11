@@ -122,13 +122,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
          }
 
         const passengerFrom = { lat: fromLat, lng: fromLng };
-         const passengerTo = { lat: toLat, lng: toLng };
-         const passengerDateTimeMs = requestedDate
-           ? new Date(`${requestedDate}T${requestedTime || "00:00"}:00`).getTime()
-           : null;
+        const passengerTo = { lat: toLat, lng: toLng };
+        const passengerDateTimeMs = requestedDate
+          ? new Date(`${requestedDate}T${requestedTime || "00:00"}:00`).getTime()
+          : null;
 
         const viewerRole = (firstValue(req.query.viewerRole as any) || "").toLowerCase();
         const includeSelfTrips = viewerRole === "driver";
+        const debugMode = String(firstValue(req.query.debug as any) || "").toLowerCase() === "true";
+        const debugDetails: any[] = [];
  
          const snapshot = await db
            .collection("trips")
@@ -146,13 +148,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         snapshot.forEach((doc) => {
           const trip = doc.data() as any;
+          const rejectionReasons: string[] = [];
 
           if (!includeSelfTrips && trip.driver_uid === uid) {
+            if (debugMode) {
+              rejectionReasons.push("same_driver");
+              debugDetails.push({ trip_id: doc.id, reason: rejectionReasons });
+            }
             return;
           }
 
           const tripDateIso = trip.time ? new Date(trip.time).toISOString().slice(0, 10) : null;
           if (requestedDate && tripDateIso !== requestedDate) {
+            if (debugMode) {
+              rejectionReasons.push("date_mismatch");
+              debugDetails.push({ trip_id: doc.id, reason: rejectionReasons, tripDateIso, requestedDate });
+            }
             return;
           }
 
@@ -161,6 +172,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const timeDifference = Math.abs(tripTimeMs - passengerDateTimeMs) / 60000;
             const timeAllowance = Number(trip.extra_minutes || 0) + 30; // base allowance + margin
             if (timeDifference > timeAllowance) {
+              if (debugMode) {
+                rejectionReasons.push("time_difference");
+                debugDetails.push({ trip_id: doc.id, reason: rejectionReasons, timeDifference, timeAllowance });
+              }
               return;
             }
           }
@@ -176,6 +191,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             destLat === null ||
             destLng === null
           ) {
+            if (debugMode) {
+              rejectionReasons.push("missing_coordinates");
+              debugDetails.push({ trip_id: doc.id, reason: rejectionReasons });
+            }
             return;
           }
 
@@ -237,6 +256,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               estimated_minutes_detour: Number(estimatedMinutes.toFixed(1)),
               extra_distance_km: Number(extraDistanceKm.toFixed(2)),
             });
+          } else if (debugMode) {
+            const reasons: string[] = [];
+            if (!locationMatches) reasons.push("location_mismatch");
+            if (!detourWithinAllowance) reasons.push("detour_exceeded");
+            if (extraMinutesRequired > minutesAllowance) reasons.push("minutes_exceeded");
+            debugDetails.push({
+              trip_id: doc.id,
+              reason: reasons,
+              originWithinAllowance,
+              destinationWithinAllowance,
+              detourWithinAllowance,
+              extraMinutesRequired,
+              minutesAllowance,
+              detourAllowanceKm,
+              extraDistanceKm,
+              distanceToOriginKm: Number(distanceToOriginKm.toFixed(2)),
+              distanceToDestinationKm: Number(distanceToDestinationKm.toFixed(2)),
+            });
           }
         });
 
@@ -246,7 +283,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return dateB - dateA;
         });
 
-        return res.status(200).json({ trips: sortedTrips });
+        return res.status(200).json(
+          debugMode ? { trips: sortedTrips, debug: debugDetails } : { trips: sortedTrips }
+        );
       }
 
       const snapshot = await db
