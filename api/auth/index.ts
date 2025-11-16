@@ -5,9 +5,9 @@ import loginGoogleHandler from "../../src/auth/login-google";
 import verifyHandler from "../../src/auth/verify";
 import ensureUserHandler from "../../src/auth/ensure-user";
 import registerHandler from "../../src/auth/register";
-import sendOtpHandler from "../../src/auth/send-otp";
-import verifyOtpHandler from "../../src/auth/verify-otp";
 import resetPasswordHandler from "../../src/auth/reset-password";
+import sendResetLinkHandler from "../../src/auth/send-reset-link";
+import sendUnisabanaResetLink from "../../src/auth/send-unisabana-reset-link";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Obtener la ruta desde la URL
@@ -42,16 +42,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return registerHandler(req, res);
   }
   
-  if (normalizedPath === "/api/auth/send-otp") {
-    return sendOtpHandler(req, res);
-  }
-  
-  if (normalizedPath === "/api/auth/verify-otp") {
-    return verifyOtpHandler(req, res);
-  }
-  
   if (normalizedPath === "/api/auth/reset-password") {
     return resetPasswordHandler(req, res);
+  }
+  
+  if (normalizedPath === "/api/auth/send-reset-link") {
+    return sendResetLinkHandler(req, res);
+  }
+  
+  if (normalizedPath === "/api/auth/send-unisabana-reset-link") {
+    return sendUnisabanaResetLink(req, res);
   }
   
   // Si no coincide ninguna ruta
