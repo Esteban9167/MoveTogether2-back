@@ -1,0 +1,26 @@
+{
+  "name": "movetogether2-back",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "serve": "node server.js",
+    "serve:vercel": "npx vercel dev --listen=3001 --yes",
+    "build": "tsc",
+    "dev": "npm run build && npm run serve"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.21",
+    "firebase-admin": "^12.5.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vercel/node": "^4.0.0",
+    "dotenv": "^17.2.3",
+    "typescript": "^5.4.0",
+    "vercel": "^48.8.2"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
